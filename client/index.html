@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pong Game</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -42,17 +43,18 @@
         const game = new Phaser.Game(config);
 
         let paddleLeft, paddleRight, ball, cursors, keys;
+        let socket;
+        let gameState = {};
+        let paddleSide = 'left'; // Identifica se il client è il giocatore sinistro o destro
 
         function preload() {
             const graphics = this.add.graphics();
             graphics.fillStyle(0xffffff, 1);
 
-            // Create paddle geometry
             const paddleTexture = this.textures.createCanvas('paddle', 10, 100);
             graphics.fillRect(0, 0, 10, 100);
             graphics.generateTexture('paddle', 10, 100);
 
-            // Create ball geometry
             const ballTexture = this.textures.createCanvas('ball', 10, 10);
             graphics.clear();
             graphics.fillStyle(0xffffff, 1);
@@ -75,23 +77,52 @@
 
             cursors = this.input.keyboard.createCursorKeys();
             keys = this.input.keyboard.addKeys('W,S');
+
+            // Connect to the Flask server via Socket.IO
+            socket = io('http://localhost:5000');
+
+            socket.on('connect', () => {
+                console.log('Connected to server');
+            });
+
+            socket.on('gameState', (state) => {
+                gameState = state;
+                updateGameObjects();
+            });
         }
 
         function update() {
-            paddleLeft.body.setVelocityY(0);
-            paddleRight.body.setVelocityY(0);
+            let paddleVelocity = 0;
 
-            if (keys.W.isDown) {
-                paddleLeft.body.setVelocityY(-300);
-            } else if (keys.S.isDown) {
-                paddleLeft.body.setVelocityY(300);
+            if (paddleSide === 'left') {
+                if (keys.W.isDown) {
+                    paddleVelocity = -300;
+                } else if (keys.S.isDown) {
+                    paddleVelocity = 300;
+                }
+            } else if (paddleSide === 'right') {
+                if (cursors.up.isDown) {
+                    paddleVelocity = -300;
+                } else if (cursors.down.isDown) {
+                    paddleVelocity = 300;
+                }
             }
 
-            if (cursors.up.isDown) {
-                paddleRight.body.setVelocityY(-300);
-            } else if (cursors.down.isDown) {
-                paddleRight.body.setVelocityY(300);
+            // Imposta la velocità del paddle
+            if (paddleSide === 'left') {
+                paddleLeft.body.setVelocityY(paddleVelocity);
+                socket.emit('updatePaddle', { paddle: 'left', paddleY: paddleLeft.y });
+            } else if (paddleSide === 'right') {
+                paddleRight.body.setVelocityY(paddleVelocity);
+                socket.emit('updatePaddle', { paddle: 'right', paddleY: paddleRight.y });
             }
+        }
+
+        function updateGameObjects() {
+            paddleLeft.y = gameState.paddleLeftY;
+            paddleRight.y = gameState.paddleRightY;
+            ball.x = gameState.ballX;
+            ball.y = gameState.ballY;
         }
     </script>
 </body>
