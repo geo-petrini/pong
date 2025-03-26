@@ -1,14 +1,12 @@
-from flask import Flask
+from flask import Flask, request
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
-import random
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Dati del gioco: posizioni iniziali di paddle e palla
 game_state = {
     'paddleLeftY': 300,
     'paddleRightY': 300,
@@ -18,6 +16,8 @@ game_state = {
     'ballVelocityY': 200
 }
 
+players = {}  # Memorizza l'assegnazione dei paddle ai client
+
 @app.route('/')
 def home():
     return "Welcome to the Pong Server!"
@@ -25,35 +25,42 @@ def home():
 @socketio.on('connect')
 def handle_connect():
     print('Client connected')
-    # Invia lo stato del gioco quando un client si connette
+
+    # Assegna un paddle al nuovo giocatore
+    if 'left' not in players.values():
+        paddle_side = 'left'
+    elif 'right' not in players.values():
+        paddle_side = 'right'
+    else:
+        paddle_side = 'spectator'  # Se entrambi i paddle sono occupati, diventa spettatore
+
+    players[request.sid] = paddle_side  # Assegna il paddle al client
+    emit('assignPaddle', {'paddle': paddle_side})  # Invia il lato al client
     emit('gameState', game_state)
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print('Client disconnected')
+    print(f'Client {request.sid} disconnected')
+    if request.sid in players:
+        del players[request.sid]  # Libera il paddle
 
 @socketio.on('updatePaddle')
 def handle_update_paddle(data):
-    # Solo aggiornare la posizione del paddle del client che invia l'aggiornamento
-    if data['paddle'] == 'left':
+    if data['paddle'] == 'left' and players.get(request.sid) == 'left':
         game_state['paddleLeftY'] = data['paddleY']
-    elif data['paddle'] == 'right':
+    elif data['paddle'] == 'right' and players.get(request.sid) == 'right':
         game_state['paddleRightY'] = data['paddleY']
 
-    # Gestisci il movimento della palla
     game_state['ballX'] += game_state['ballVelocityX'] / 60
     game_state['ballY'] += game_state['ballVelocityY'] / 60
 
-    # Collisione con i bordi superiore e inferiore
     if game_state['ballY'] <= 0 or game_state['ballY'] >= 600:
         game_state['ballVelocityY'] = -game_state['ballVelocityY']
 
-    # Collisione con i paddle
     if (game_state['ballX'] <= 60 and game_state['ballY'] >= game_state['paddleLeftY'] and game_state['ballY'] <= game_state['paddleLeftY'] + 100) or \
        (game_state['ballX'] >= 740 and game_state['ballY'] >= game_state['paddleRightY'] and game_state['ballY'] <= game_state['paddleRightY'] + 100):
         game_state['ballVelocityX'] = -game_state['ballVelocityX']
 
-    # Invia lo stato del gioco aggiornato a tutti i client
     emit('gameState', game_state, broadcast=True)
 
 if __name__ == '__main__':

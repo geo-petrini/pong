@@ -21,6 +21,10 @@
     </style>
 </head>
 <body>
+    <div id="paddleInfo" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); 
+        color: white; font-size: 20px; font-family: Arial, sans-serif;">
+        Connessione in corso...
+    </div>    
     <script>
         const config = {
             type: Phaser.AUTO,
@@ -84,6 +88,12 @@
             socket.on('connect', () => {
                 console.log('Connected to server');
             });
+
+            socket.on('assignPaddle', (data) => {
+            paddleSide = data.paddle;
+            document.getElementById('paddleInfo').innerText = 
+                (paddleSide === 'spectator') ? "Sei uno spettatore" : `Stai controllando il paddle ${paddleSide}`;
+        });            
 
             socket.on('gameState', (state) => {
                 gameState = state;
