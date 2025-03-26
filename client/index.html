@@ -118,13 +118,15 @@
                 }
             }
 
-            // Imposta la velocità del paddle
-            if (paddleSide === 'left') {
-                paddleLeft.body.setVelocityY(paddleVelocity);
-                socket.emit('updatePaddle', { paddle: 'left', paddleY: paddleLeft.y });
-            } else if (paddleSide === 'right') {
-                paddleRight.body.setVelocityY(paddleVelocity);
-                socket.emit('updatePaddle', { paddle: 'right', paddleY: paddleRight.y });
+            // Muove il paddle solo se il lato è assegnato
+            let currentPaddle = paddleSide === 'left' ? paddleLeft : paddleRight;
+            currentPaddle.body.setVelocityY(paddleVelocity);
+
+            // Invia aggiornamento solo se la posizione cambia
+            if (paddleSide === 'left' && currentPaddle.y !== gameState.paddleLeftY) {
+                socket.emit('updatePaddle', { paddle: 'left', paddleY: currentPaddle.y });
+            } else if (paddleSide === 'right' && currentPaddle.y !== gameState.paddleRightY) {
+                socket.emit('updatePaddle', { paddle: 'right', paddleY: currentPaddle.y });
             }
         }
 
