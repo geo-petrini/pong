@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pong Game</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+    <!-- <script src="https://raw.githubusercontent.com/rexrainbow/phaser3-rex-notes/master/dist/rexuiplugin.min.js"></script> -->
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script type="module" src="js/game.js"></script>
     <style>
         body {
             margin: 0;
@@ -15,127 +18,72 @@
             height: 100vh;
             background-color: #000;
         }
+
         canvas {
             display: block;
         }
+
+        #paddle-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+        }
+
+        #lobby {
+            position: absolute;
+            top: 40px;
+            left: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            text-align: right;
+        }
+
+        .lobby-buttons {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .lobby-buttons button {
+            background-color: #444;
+            color: white;
+            border: none;
+            padding: 10px;
+            margin: 5px 0;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .lobby-buttons button:hover {
+            background-color: #666;
+        }
+
+        .lobby-buttons input {
+            padding: 10px;
+            font-size: 16px;
+        }
     </style>
 </head>
+
 <body>
-    <div id="paddleInfo" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); 
-        color: white; font-size: 20px; font-family: Arial, sans-serif;">
-        Connessione in corso...
-    </div>    
-    <script>
-        const config = {
-            type: Phaser.AUTO,
-            width: 800,
-            height: 600,
-            backgroundColor: '#222',
-            physics: {
-                default: 'arcade',
-                arcade: {
-                    debug: false
-                }
-            },
-            scene: {
-                preload: preload,
-                create: create,
-                update: update
-            }
-        };
+    <div id="paddle-info">
+        <!-- Connessione in corso... -->
+    </div>
+    <div id="phaser-content"></div>    
+    <!-- <div id="lobby">
+        <div id="session-info">Lobby: In attesa di giocatori...</div>
+        <div class="lobby-buttons">
+            <button id="create-session">Crea Nuova Sessione</button>
+            <input type="text" id="session-id-input" placeholder="ID Sessione" />
+            <button id="join-session">Unisciti a Sessione</button>
+        </div>
+        
+    </div> -->
 
-        const game = new Phaser.Game(config);
-
-        let paddleLeft, paddleRight, ball, cursors, keys;
-        let socket;
-        let gameState = {};
-        let paddleSide = 'left'; // Identifica se il client è il giocatore sinistro o destro
-
-        function preload() {
-            const graphics = this.add.graphics();
-            graphics.fillStyle(0xffffff, 1);
-
-            const paddleTexture = this.textures.createCanvas('paddle', 10, 100);
-            graphics.fillRect(0, 0, 10, 100);
-            graphics.generateTexture('paddle', 10, 100);
-
-            const ballTexture = this.textures.createCanvas('ball', 10, 10);
-            graphics.clear();
-            graphics.fillStyle(0xffffff, 1);
-            graphics.fillRect(0, 0, 10, 10);
-            graphics.generateTexture('ball', 10, 10);
-        }
-
-        function create() {
-            paddleLeft = this.physics.add.image(50, config.height / 2, 'paddle').setImmovable(true);
-            paddleRight = this.physics.add.image(config.width - 50, config.height / 2, 'paddle').setImmovable(true);
-            ball = this.physics.add.image(config.width / 2, config.height / 2, 'ball').setCollideWorldBounds(true).setBounce(1);
-
-            ball.setVelocity(200, 200);
-
-            paddleLeft.body.collideWorldBounds = true;
-            paddleRight.body.collideWorldBounds = true;
-
-            this.physics.add.collider(ball, paddleLeft);
-            this.physics.add.collider(ball, paddleRight);
-
-            cursors = this.input.keyboard.createCursorKeys();
-            keys = this.input.keyboard.addKeys('W,S');
-
-            // Connect to the Flask server via Socket.IO
-            socket = io('http://localhost:5000');
-
-            socket.on('connect', () => {
-                console.log('Connected to server');
-            });
-
-            socket.on('assignPaddle', (data) => {
-            paddleSide = data.paddle;
-            document.getElementById('paddleInfo').innerText = 
-                (paddleSide === 'spectator') ? "Sei uno spettatore" : `Stai controllando il paddle ${paddleSide}`;
-        });            
-
-            socket.on('gameState', (state) => {
-                gameState = state;
-                updateGameObjects();
-            });
-        }
-
-        function update() {
-            let paddleVelocity = 0;
-
-            if (paddleSide === 'left') {
-                if (keys.W.isDown) {
-                    paddleVelocity = -300;
-                } else if (keys.S.isDown) {
-                    paddleVelocity = 300;
-                }
-            } else if (paddleSide === 'right') {
-                if (cursors.up.isDown) {
-                    paddleVelocity = -300;
-                } else if (cursors.down.isDown) {
-                    paddleVelocity = 300;
-                }
-            }
-
-            // Muove il paddle solo se il lato è assegnato
-            let currentPaddle = paddleSide === 'left' ? paddleLeft : paddleRight;
-            currentPaddle.body.setVelocityY(paddleVelocity);
-
-            // Invia aggiornamento solo se la posizione cambia
-            if (paddleSide === 'left' && currentPaddle.y !== gameState.paddleLeftY) {
-                socket.emit('updatePaddle', { paddle: 'left', paddleY: currentPaddle.y });
-            } else if (paddleSide === 'right' && currentPaddle.y !== gameState.paddleRightY) {
-                socket.emit('updatePaddle', { paddle: 'right', paddleY: currentPaddle.y });
-            }
-        }
-
-        function updateGameObjects() {
-            paddleLeft.y = gameState.paddleLeftY;
-            paddleRight.y = gameState.paddleRightY;
-            ball.x = gameState.ballX;
-            ball.y = gameState.ballY;
-        }
-    </script>
 </body>
+
 </html>
