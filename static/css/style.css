@@ -1,0 +1,56 @@
+body {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #000;
+}
+
+canvas {
+    display: block;
+}
+
+#paddle-info {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 18px;
+}
+
+#lobby {
+    position: absolute;
+    top: 40px;
+    left: 20px;
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 18px;
+    text-align: right;
+}
+
+.lobby-buttons {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.lobby-buttons button {
+    background-color: #444;
+    color: white;
+    border: none;
+    padding: 10px;
+    margin: 5px 0;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.lobby-buttons button:hover {
+    background-color: #666;
+}
+
+.lobby-buttons input {
+    padding: 10px;
+    font-size: 16px;
+}
