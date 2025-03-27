@@ -1,5 +1,6 @@
 import time
 from threading import Thread
+import random
 
 from flask import request
 from flask import current_app
@@ -13,6 +14,7 @@ import modules.session_utils as su
 socketio = SocketIO()
 
 # TODO check if it could be better using rooms
+# TODO use global variables to store the game size and other default values (like paddles x position)
 
 @socketio.on('createSession')
 def socket_create_session(data):
@@ -82,6 +84,13 @@ def update_ball(session_id):
     # Collisione con bordi superiore e inferiore
     if game_state['ballY'] <= 0 or game_state['ballY'] >= 600:
         game_state['ballVelocityY'] = -game_state['ballVelocityY']
+
+    # Reset ball if it touches the left or right bounds
+    if game_state['ballX'] <= 0 or game_state['ballX'] >= 800:  # Assuming 800 is the width of the playfield
+        game_state['ballX'] = 400  # Reset to center (half of the width)
+        game_state['ballY'] = 300  # Reset to center (half of the height)
+        game_state['ballVelocityX'] = -game_state['ballVelocityX']  # Reverse direction
+        game_state['ballVelocityY'] = random.choice([-200, 200])  # Reset vertical velocity to a random direction
 
     # Collisione con i paddle
     if (game_state['ballX'] <= 60 and game_state['paddleLeftY'] <= game_state['ballY'] <= game_state['paddleLeftY'] + 100) or \

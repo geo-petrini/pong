@@ -211,6 +211,12 @@ class GameScene extends Phaser.Scene {
 
     preload () {
         const graphics = this.add.graphics();
+        
+        // Draw the border
+        const borderGraphics = this.add.graphics();
+        borderGraphics.lineStyle(4, 0xffffff, 1); // White border with 4px thickness
+        borderGraphics.strokeRect(0, 0, config.width, config.height); // Draw the border around the playfield
+        
         graphics.fillStyle(0xffffff, 1);
     
         const paddleTexture = this.textures.createCanvas('paddle', 10, 100);
@@ -227,9 +233,20 @@ class GameScene extends Phaser.Scene {
     create() {
         this.paddleLeft = this.physics.add.image(50, config.height / 2, 'paddle').setImmovable(true);
         this.paddleRight = this.physics.add.image(config.width - 50, config.height / 2, 'paddle').setImmovable(true);
-        this.ball = this.physics.add.image(config.width / 2, config.height / 2, 'ball').setCollideWorldBounds(true).setBounce(1);
+        this.ball = this.physics.add.image(config.width / 2, config.height / 2, 'ball')
+            .setCollideWorldBounds(true)
+            .setBounce(1);
     
-        // ball.setVelocity(200, 200);
+        // Listen for ball collision with world bounds
+        // this.ball.body.onWorldBounds = true;
+        // this.physics.world.on('worldbounds', (body, up, down, left, right) => {
+        //     if (body.gameObject === this.ball) {
+        //         if (left || right) {
+        //             // Ball touched the left or right border
+        //             this.resetBall();
+        //         }
+        //     }
+        // });
     
         this.paddleLeft.body.collideWorldBounds = true;
         this.paddleRight.body.collideWorldBounds = true;
@@ -319,6 +336,12 @@ class GameScene extends Phaser.Scene {
         // this.sessionInfo.setText(`Sessione: ${this.sessionId}`);
         this.sessionInfo.setText(`Sessione: ${this.sessionId} | Giocatore: ${socket.id}`);
     }
+
+    // // Reset the ball to the center
+    // resetBall() {
+    //     this.ball.setPosition(config.width / 2, config.height / 2);
+    //     this.ball.setVelocity(200, 200); // Reset velocity
+    // }    
 }
 
 const config = {
