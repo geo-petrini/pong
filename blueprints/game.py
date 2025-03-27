@@ -12,13 +12,15 @@ import modules.session_utils as su
 
 socketio = SocketIO()
 
+# TODO check if it could be better using rooms
+
 @socketio.on('createSession')
 def socket_create_session(data):
     """Crea una nuova sessione di gioco tramite WebSocket"""
     session_id = data['session_id'] if 'session_id' in data else su.generate_session_id()
 
     if su.create_game_session(session_id):
-        socketio.emit('sessionCreated', {'session_id': session_id})
+        socketio.emit('sessionCreated', {'session_id': session_id, 'to':request.sid} )
     else:
         emit('error', {'message': 'Sessione già presente'})
 
@@ -41,9 +43,10 @@ def socket_join_session(data):
 
     paddle = su.get_player_paddle(session_id, request.sid)
 
-    socketio.emit('sessionJoined', {'session_id': session_id, 'paddle': paddle, 'playerid': request.sid}, to=request.sid)
+    # TODO use the to argument somehow
+    socketio.emit('sessionJoined', {'session_id': session_id, 'paddle': paddle, 'to':request.sid})
     # Notifica tutti i client connessi a quella sessione
-    socketio.emit('gameState', su.get_game_state(session_id), to=session_id)
+    socketio.emit('gameState', {'state':su.get_game_state(session_id), 'to':session_id})
     
 @socketio.on('connect')
 def handle_connect():
@@ -66,6 +69,7 @@ def handle_update_paddle(data):
     
     if su.session_exists(session_id):
         su.update_paddle(session_id, paddle, paddle_y)
+        socketio.emit('gameState', {'state':su.get_game_state(session_id), 'to':session_id})
     else:
         emit('error', {'message': 'Sessione non trovata'})
 
@@ -87,7 +91,7 @@ def update_ball(session_id):
     # print(f"Ball updated: X={game_state['ballX']} Y={game_state['ballY']}")
     # Invia lo stato aggiornato a tutti i client della sessione
     try:
-        socketio.emit('gameState', game_state, to=session_id)
+        socketio.emit('gameState', {'state':game_state, 'to':session_id})
     except Exception as e:
         current_app.logger.exception(f"Errore durante l'emissione dello stato del gioco per la sessione {session_id}: {e}")
 

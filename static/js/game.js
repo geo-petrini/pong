@@ -160,12 +160,14 @@ class LobbyScene extends Phaser.Scene {
 
         // Gestire la risposta dal server quando la sessione viene creata
         socket.on('sessionCreated', (response) => {
-            if (response && response.session_id) {socket.emit('joinSession', { session_id: response.session_id }); }
+            if (response && response.session_id && response.to == socket.id) {
+            socket.emit('joinSession', { session_id: response.session_id });
+            }
         });
 
         // Gestire la risposta dal server quando si è uniti alla sessione
         socket.on('sessionJoined', (response) => {
-            if (response && response.session_id && response.playerid == socket.id) {this.startGame( response.session_id, response.paddle )}
+            if (response && response.session_id && response.to == socket.id) {this.startGame( response.session_id, response.paddle )}
         });
         
         // Gestire gli errori
@@ -244,16 +246,10 @@ class GameScene extends Phaser.Scene {
         socket.on('connect', () => {
             console.log(`✅ Connesso al server Pong con socket ID: ${socket.id}`);
         });
-    
-        // Riceve l'assegnazione del paddle (sinistra, destra o spettatore)
-        socket.on('assignPaddle', (data) => {
-            this.paddleSide = data.paddle;
-            this.updatePaddleInfo();
-            console.log(`🎮 Paddle assegnato: ${this.paddleSide}`);
-        });
-    
-        socket.on('gameState', (state) => {
-            this.gameState = state;
+       
+        socket.on('gameState', (response) => {
+            if (response.to !== this.sessionId) return;
+            this.gameState = response.state;
             this.updateGameObjects();
             this.updatePaddleInfo();
             console.debug('🎮 Stato di gioco ricevuto dal server', state);

@@ -72,9 +72,18 @@ def is_session_full(session_id):
 def update_paddle(session_id, paddle, paddle_y):
     """Aggiorna la posizione di un paddle in una sessione di gioco"""
     if paddle == 'left':
+        if game_sessions[session_id]['game_state']['paddleLeftY'] == paddle_y:
+            # current_app.logger.debug(f'paddle "{paddle}" position is already {paddle_y}')
+            return
         game_sessions[session_id]['game_state']['paddleLeftY'] = paddle_y
+        current_app.logger.debug(f'updated paddle "{paddle}" to {paddle_y}')
     elif paddle == 'right':
+        if game_sessions[session_id]['game_state']['paddleRightY'] == paddle_y:
+            # current_app.logger.debug(f'paddle "{paddle}" position is already {paddle_y}')
+            return
         game_sessions[session_id]['game_state']['paddleRightY'] = paddle_y
+        current_app.logger.debug(f'updated paddle "{paddle}" to {paddle_y}')
+
 
 def leave_session(playerid):
     """Rimuove un giocatore da una sessione di gioco"""
