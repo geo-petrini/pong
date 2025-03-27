@@ -36,11 +36,11 @@ def change_logger():
     current_app.logger.handlers[0].setFormatter(formatter)
     current_app.logger.setLevel(logging.DEBUG)
     # Add a rotating file handler
-    file_handler = logging.handlers.RotatingFileHandler(
-        'app.log', maxBytes=10 * 1024 * 1024, backupCount=5
-    )
-    file_handler.setFormatter(formatter)
-    current_app.logger.addHandler(file_handler)
+    # file_handler = logging.handlers.RotatingFileHandler(
+    #     'app.log', maxBytes=10 * 1024 * 1024, backupCount=5
+    # )
+    # file_handler.setFormatter(formatter)
+    # current_app.logger.addHandler(file_handler)
 
 if __name__ == '__main__':
     # Avvia il ciclo di aggiornamento della palla in background
