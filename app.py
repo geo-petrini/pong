@@ -3,14 +3,12 @@ import logging
 import logging.handlers
 from logging import Formatter
 from dotenv import load_dotenv
-
-# Load environment variables from a .env file
-load_dotenv()
 from flask import Flask, request, current_app, jsonify, redirect, url_for, render_template
-
 from flask_cors import CORS
-
 from blueprints.game import socketio, start_ball_update
+
+
+load_dotenv()
 
 def create_app(debug=False):
     """Create an application."""
@@ -46,7 +44,5 @@ def change_logger():
     current_app.logger.addHandler(file_handler)
 
 if __name__ == '__main__':
-    # Avvia il ciclo di aggiornamento della palla in background
-    
     app = create_app(debug=True)
-    socketio.run(app, port=5000)
+    socketio.run(app, port=5000, host="0.0.0.0", allow_unsafe_werkzeug=True)
