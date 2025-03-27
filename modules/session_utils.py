@@ -76,13 +76,12 @@ def update_paddle(session_id, paddle, paddle_y):
             # current_app.logger.debug(f'paddle "{paddle}" position is already {paddle_y}')
             return
         game_sessions[session_id]['game_state']['paddleLeftY'] = paddle_y
-        current_app.logger.debug(f'updated paddle "{paddle}" to {paddle_y}')
     elif paddle == 'right':
         if game_sessions[session_id]['game_state']['paddleRightY'] == paddle_y:
             # current_app.logger.debug(f'paddle "{paddle}" position is already {paddle_y}')
             return
         game_sessions[session_id]['game_state']['paddleRightY'] = paddle_y
-        current_app.logger.debug(f'updated paddle "{paddle}" to {paddle_y}')
+    # current_app.logger.debug(f'updated paddle "{paddle}" to {paddle_y}')
 
 
 def leave_session(playerid):
