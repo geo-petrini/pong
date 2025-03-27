@@ -1,0 +1,8 @@
+*.md
+*/*__pycache__
+.venv
+_doc
+_ref
+_res
+.git
+*.log
