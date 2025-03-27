@@ -1,3 +1,6 @@
 /server/.venv
 .venv
 /_res
+*/__pycache__
+__pycache__
+/app.log

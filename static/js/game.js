@@ -130,7 +130,7 @@ class LobbyScene extends Phaser.Scene {
         buttons
         .on('button.click', function (button, index, pointer, event) {
             // print.text += `Click button-${button.text}\n`;
-            console.debug(`Pointer-click: ${button.text}`)
+            // console.debug(`Pointer-click: ${button.text}`)
             button.scaleYoyo(500, 1.2);
             buttons.setButtonEnable(false)
             setTimeout(() => {
@@ -144,40 +144,47 @@ class LobbyScene extends Phaser.Scene {
             }
         })
         .on('button.out', function (button) {
-            console.debug(`Pointer-out: ${button.text}`)
+            // console.debug(`Pointer-out: ${button.text}`)
             // button.stroke = 'black'
         })
         .on('button.over', function (button) {
-            console.debug(`Pointer-over: ${button.text}`)
+            // console.debug(`Pointer-over: ${button.text}`)
             // button.background.stroke = 'white'
         })
         .on('button.down', function (button) {
-            console.debug(`Pointer-down: ${button.text}`)
+            // console.debug(`Pointer-down: ${button.text}`)
         })
         .on('button.up', function (button) {
-            console.debug(`Pointer-up: ${button.text}`)
+            // console.debug(`Pointer-up: ${button.text}`)
         })
 
         // Gestire la risposta dal server quando la sessione viene creata
         socket.on('sessionCreated', (response) => {
-            if (response && response.session_id) {this.startGame(response.session_id)}
+            if (response && response.session_id) {socket.emit('joinSession', { session_id: response.session_id }); }
         });
 
         // Gestire la risposta dal server quando si è uniti alla sessione
         socket.on('sessionJoined', (response) => {
-            if (response && response.session_id) {this.startGame(response.session_id)}
+            if (response && response.session_id && response.playerid == socket.id) {this.startGame( response.session_id, response.paddle )}
         });
         
         // Gestire gli errori
         socket.on('error', (error) => {
-            alert(error.message);  // Mostra un errore se la sessione non è trovata
+            // alert(error.message);  // Mostra un errore se la sessione non è trovata
+            const sessionErrorModal = document.getElementById('sessionErrorModal')
+            if (sessionErrorModal) {
+                const modalMessage = sessionErrorModal.querySelector('#session-error-message')
+                modalMessage.innerHTML = error.message
+            }    
+            const errorModal = new bootstrap.Modal(sessionErrorModal);
+            errorModal.show();        
         });
         
     }
 
-    startGame(session_id) {
+    startGame(session_id, paddle) {
         setTimeout(() => {
-            this.scene.start('GameScene', { sessionId: session_id });
+            this.scene.start('GameScene', { 'sessionId': session_id, 'paddle': paddle});
         }, 300);
     }
 }
@@ -189,18 +196,15 @@ class GameScene extends Phaser.Scene {
             key: 'GameScene'
         });
     }
-    init(data){
+    init(data) {
         this.paddleLeft
         this.paddleRight
         this.ball
         this.cursors
         this.keys;
         this.gameState = {};
-        this.paddleSide = 'spectator'; // Predefinito: spettatore
+        this.paddleSide = data.paddle; // Predefinito: spettatore
         this.sessionId = data.sessionId;
-
-        this.paddleInfo = document.getElementById('paddle-info');
-        this.sessionInfo = document.getElementById('session-info');
     }
 
     preload () {
@@ -233,11 +237,12 @@ class GameScene extends Phaser.Scene {
     
         this.cursors = this.input.keyboard.createCursorKeys();
         this.keys = this.input.keyboard.addKeys('W,S');
-    
-        // Connect to the Flask server via Socket.IO
-    
+
+        this.paddleInfo = this.add.text(10, 10, '', { fontSize: '16px', fill: '#fff' });
+        this.sessionInfo = this.add.text(10, 30, '', { fontSize: '16px', fill: '#fff' });        
+           
         socket.on('connect', () => {
-            console.log('✅ Connesso al server Pong');
+            console.log(`✅ Connesso al server Pong con socket ID: ${socket.id}`);
         });
     
         // Riceve l'assegnazione del paddle (sinistra, destra o spettatore)
@@ -250,6 +255,8 @@ class GameScene extends Phaser.Scene {
         socket.on('gameState', (state) => {
             this.gameState = state;
             this.updateGameObjects();
+            this.updatePaddleInfo();
+            console.debug('🎮 Stato di gioco ricevuto dal server', state);
         });
     }
     
@@ -259,29 +266,31 @@ class GameScene extends Phaser.Scene {
     
         // Controllo del paddle sinistro (W e S)
         if (this.paddleSide === 'left') {
-            if (keys.W.isDown) paddleVelocity = -300;
-            else if (keys.S.isDown) paddleVelocity = 300;
+            if (this.keys.W.isDown) paddleVelocity = -300;
+            else if (this.keys.S.isDown) paddleVelocity = 300;
         }
     
         // Controllo del paddle destro (Freccia Su e Giù)
         if (this.paddleSide === 'right') {
-            if (cursors.up.isDown) paddleVelocity = -300;
-            else if (cursors.down.isDown) paddleVelocity = 300;
+            if (this.cursors.up.isDown) paddleVelocity = -300;
+            else if (this.cursors.down.isDown) paddleVelocity = 300;
         }
     
         // Movimento del paddle locale
-        let currentPaddle = paddleSide === 'left' ? this.paddleLeft : this.paddleRight;
+        let currentPaddle = this.paddleSide === 'left' ? this.paddleLeft : this.paddleRight;
         currentPaddle.body.setVelocityY(paddleVelocity);
     
         // Invia aggiornamento solo se la posizione cambia
         if (this.paddleSide === 'left' && currentPaddle.y !== this.gameState.paddleLeftY) {
-            socket.emit('updatePaddle', { paddle: 'left', paddleY: currentPaddle.y });
+            socket.emit('updatePaddle', { session_id: this.sessionId, paddle: 'left', paddleY: currentPaddle.y });
         } else if (this.paddleSide === 'right' && currentPaddle.y !== this.gameState.paddleRightY) {
-            socket.emit('updatePaddle', { paddle: 'right', paddleY: currentPaddle.y });
+            socket.emit('updatePaddle', { session_id: this.sessionId, paddle: 'right', paddleY: currentPaddle.y });
         }
     
         // Sincronizza sempre paddle e palla con il server
         this.updateGameObjects();
+        this.updatePaddleInfo();
+        this.updateSessionInfo();
     }
     
     updateGameObjects() {
@@ -302,13 +311,18 @@ class GameScene extends Phaser.Scene {
     
     updatePaddleInfo() {
         if (this.paddleSide === 'left') {
-            this.paddleInfo.textContent = "🎮 Stai controllando: Sinistra";
-        } else if (paddleSide === 'right') {
-            this.paddleInfo.textContent = "🎮 Stai controllando: Destra";
+            this.paddleInfo.setText("🎮 Stai controllando: Sinistra");
+        } else if (this.paddleSide === 'right') {
+            this.paddleInfo.setText("🎮 Stai controllando: Destra");
         } else {
-            this.paddleInfo.textContent = "👀 Stai osservando la partita";
+            this.paddleInfo.setText("👀 Stai osservando la partita");
         }
     }    
+
+    updateSessionInfo() {
+        // this.sessionInfo.setText(`Sessione: ${this.sessionId}`);
+        this.sessionInfo.setText(`Sessione: ${this.sessionId} | Giocatore: ${socket.id}`);
+    }
 }
 
 const config = {
