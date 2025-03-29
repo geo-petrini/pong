@@ -1,4 +1,4 @@
-let socket = io('http://localhost:5000');
+let socket = io(`${window.location.hostname}:${window.location.port}`);
 
 class LobbyScene extends Phaser.Scene {
     // uses https://rexrainbow.github.io/phaser3-rex-notes/docs/site/
