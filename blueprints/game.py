@@ -13,6 +13,7 @@ import modules.session_utils as su
 
 socketio = SocketIO()
 
+
 # TODO check if it could be better using rooms
 # TODO use global variables to store the game size and other default values (like paddles x position)
 
@@ -71,38 +72,58 @@ def handle_update_paddle(data):
     
     if su.session_exists(session_id):
         su.update_paddle(session_id, paddle, paddle_y)
-        socketio.emit('gameState', {'state':su.get_game_state(session_id), 'to':session_id})
+        # current_app.logger.debug(f'emitting state:{su.get_game_state(session_id).to_json()}')
+        socketio.emit('gameState', {'state':su.get_game_state(session_id).to_json(), 'to':session_id})
     else:
         emit('error', {'message': 'Sessione non trovata'})
 
 def update_ball(session_id):
     # Movimento della palla (aggiornamento lato server)
     game_state = su.get_game_state(session_id)
-    game_state['ballX'] += game_state['ballVelocityX'] / 60
-    game_state['ballY'] += game_state['ballVelocityY'] / 60
+    game_state.ball.x += game_state['ballVelocityX'] / 60
+    game_state.ball.y += game_state['ballVelocityY'] / 60
 
-    # Collisione con bordi superiore e inferiore
-    if game_state['ballY'] <= 0 or game_state['ballY'] >= 600:
-        game_state['ballVelocityY'] = -game_state['ballVelocityY']
+    # Collisione con bordi
+    _check_collision_ball_top(game_state)
+    _check_collision_ball_bottom(game_state)
+    _check_collision_ball_left(game_state)
+    _check_collision_ball_right(game_state)
 
-    # Reset ball if it touches the left or right bounds
-    if game_state['ballX'] <= 0 or game_state['ballX'] >= 800:  # Assuming 800 is the width of the playfield
-        game_state['ballX'] = 400  # Reset to center (half of the width)
-        game_state['ballY'] = 300  # Reset to center (half of the height)
-        game_state['ballVelocityX'] = -game_state['ballVelocityX']  # Reverse direction
-        game_state['ballVelocityY'] = random.choice([-200, 200])  # Reset vertical velocity to a random direction
-
-    # Collisione con i paddle
-    if (game_state['ballX'] <= 60 and game_state['paddleLeftY'] <= game_state['ballY'] <= game_state['paddleLeftY'] + 100) or \
-       (game_state['ballX'] >= 740 and game_state['paddleRightY'] <= game_state['ballY'] <= game_state['paddleRightY'] + 100):
-        game_state['ballVelocityX'] = -game_state['ballVelocityX']
-
-    # print(f"Ball updated: X={game_state['ballX']} Y={game_state['ballY']}")
     # Invia lo stato aggiornato a tutti i client della sessione
     try:
-        socketio.emit('gameState', {'state':game_state, 'to':session_id})
+        socketio.emit('gameState', {'state':game_state.to_json(), 'to':session_id})
     except Exception as e:
         current_app.logger.exception(f"Errore durante l'emissione dello stato del gioco per la sessione {session_id}: {e}")
+
+def _reset_ball(game_state):
+    game_state.ball.x = current_app.config['GAME_WIDTH']/2  # Reset to center (half of the width)
+    game_state.ball.y = current_app.config['GAME_HEIGHT']/2  # Reset to center (half of the height)
+    game_state.ball.velocity.x = -game_state['ballVelocityX']  # Reverse direction
+    game_state.ball.velocity.y = random.choice([-200, 200])  # Reset vertical velocity to a random direction    
+
+def _check_collision_ball_top(game_state):
+    # Collisione con bordo superiore
+    if game_state.ball.y <= 0:
+        game_state.ball.velocity.y = -game_state.ball.velocity.y
+        
+def _check_collision_ball_bottom(game_state):
+    # Collisione con bordo inferiore
+     if game_state.ball.y >= current_app.config['GAME_WIDTH']:
+        game_state.ball.velocity.y = -game_state.ball.velocity.y    
+
+def _check_collision_ball_left(game_state):
+    # Collisione con bordo sinistro
+     if game_state.ball.x >= 0:
+        _reset_ball(game_state)  
+        
+def _check_collision_ball_right(game_state):
+    # Collisione con bordo destro
+     if game_state.ball.x >= current_app.config['GAME_WIDTH']:
+        _reset_ball(game_state)  
+
+def _check_collision_paddle_left(game_state):
+    # if game_state['ballX'] = game_state["pa"]
+    pass
 
 def ball_update_loop():
     while True:
@@ -114,6 +135,7 @@ def ball_update_loop():
         time.sleep(1 / 60)  # Sincronizzazione a ~60 FPS
 
 def start_ball_update():
+    current_app.logger.info('Creating background update loop')
     thread = Thread(target=ball_update_loop)
     thread.daemon = True
     thread.start()

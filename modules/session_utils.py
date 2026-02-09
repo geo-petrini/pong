@@ -1,4 +1,5 @@
 import uuid
+from benedict import benedict
 from flask import current_app
 # Stato del gioco e sessioni attive
 game_sessions = {}
@@ -7,23 +8,54 @@ def generate_session_id():
     """Genera un ID di sessione unico"""
     return str(uuid.uuid4())
 
+def init_session_data():
+    '''
+    generate a session data structure like this
+    {
+        'players': {'left': None, 'right': None},
+        'game_state': {
+            'paddle':{
+                'left':{
+                    'x':0+current_app.config['PADDLE_OFFSET'],
+                    'y':current_app.config['GAME_HEIGHT']/2
+                },
+                'right':{
+                    'x':0+current_app.config['PADDLE_OFFSET'],
+                    'y':current_app.config['GAME_HEIGHT']/2
+                }
+            },
+            'ball':{
+                'x':current_app.config['GAME_WIDTH']/2,
+                'y':current_app.config['GAME_HEIGHT']/2,
+                'velocityX': current_app.config['BALL_VELOCITY'],
+                'velocityY': current_app.config['BALL_VELOCITY']
+            }
+        }
+    }
+    '''  
+    session_data = benedict(keyattr_dynamic=True)
+    session_data.players.left = None
+    session_data.players.right = None
+    session_data.game_state.paddle.left.x = 0+current_app.config['PADDLE_OFFSET']
+    session_data.game_state.paddle.left.y = current_app.config['GAME_HEIGHT']/2
+
+    session_data.game_state.paddle.right.x =0+current_app.config['PADDLE_OFFSET']
+    session_data.game_state.paddle.right.y = current_app.config['GAME_HEIGHT']/2
+
+    session_data.game_state.ball.x = current_app.config['GAME_WIDTH']/2
+    session_data.game_state.ball.y = current_app.config['GAME_HEIGHT']/2
+    session_data.game_state.ball.velocity.x = current_app.config['BALL_VELOCITY']
+    session_data.game_state.ball.velocity.y = current_app.config['BALL_VELOCITY']
+
+    return session_data  
+
 def create_game_session(session_id):
     """Crea una nuova sessione di gioco"""
     if session_exists(session_id):
         current_app.logger.error(f'session "{session_id}" already exists')
         return False
-
-    game_sessions[session_id] = {
-        'players': {'left': None, 'right': None},
-        'game_state': {
-            'paddleLeftY': 300,
-            'paddleRightY': 300,
-            'ballX': 400,
-            'ballY': 300,
-            'ballVelocityX': 200,
-            'ballVelocityY': 200
-        }
-    }
+    
+    game_sessions[session_id] = init_session_data()
     current_app.logger.info(f'new session created "{session_id}"')
     return True
         
@@ -37,21 +69,21 @@ def join_session(session_id, playerid):
         current_app.logger.error(f'session "{session_id}" is full')
         return (False, 'Session is full')
     
-    if game_sessions[session_id]['players']['left'] == None:
-        game_sessions[session_id]['players']['left'] = playerid
+    if game_sessions[session_id].players.left == None:
+        game_sessions[session_id].players.left = playerid
         current_app.logger.info(f'player "{playerid}" joined session "{session_id}" as left')
         return (True, 'left')
     
-    if game_sessions[session_id]['players']['right'] == None:
-        game_sessions[session_id]['players']['right'] = playerid
+    if game_sessions[session_id].players.right == None:
+        game_sessions[session_id].players.right = playerid
         current_app.logger.info(f'player "{playerid}" joined session "{session_id}" as right')
         return (True, 'right')
 
 def get_player_paddle(session_id, playerid):
     """Restituisce il paddle assegnato a un giocatore in una sessione di gioco"""
-    if game_sessions[session_id]['players']['left'] == playerid:
+    if game_sessions[session_id].players.left == playerid:
         return 'left'
-    if game_sessions[session_id]['players']['right'] == playerid:
+    if game_sessions[session_id].players.right == playerid:
         return 'right'
     return None
 
@@ -66,34 +98,34 @@ def get_game_state(session_id):
 def is_session_full(session_id):
     """Restituisce True se la sessione è piena, False altrimenti"""
     if session_exists(session_id):
-        return game_sessions[session_id]['players']['left'] is not None and game_sessions[session_id]['players']['right'] is not None
+        return game_sessions[session_id].players.left is not None and game_sessions[session_id].players.right is not None
     return False
 
 def update_paddle(session_id, paddle, paddle_y):
     """Aggiorna la posizione di un paddle in una sessione di gioco"""
     if paddle == 'left':
-        if game_sessions[session_id]['game_state']['paddleLeftY'] == paddle_y:
+        if game_sessions[session_id].game_state.paddle.left.y == paddle_y:
             # current_app.logger.debug(f'paddle "{paddle}" position is already {paddle_y}')
             return
-        game_sessions[session_id]['game_state']['paddleLeftY'] = paddle_y
+        game_sessions[session_id].game_state.paddle.left.y = paddle_y
     elif paddle == 'right':
-        if game_sessions[session_id]['game_state']['paddleRightY'] == paddle_y:
+        if game_sessions[session_id].game_state.paddle.right.y == paddle_y:
             # current_app.logger.debug(f'paddle "{paddle}" position is already {paddle_y}')
             return
-        game_sessions[session_id]['game_state']['paddleRightY'] = paddle_y
+        game_sessions[session_id].game_state.paddle.right.y = paddle_y
     # current_app.logger.debug(f'updated paddle "{paddle}" to {paddle_y}')
 
 
 def leave_session(playerid):
     """Rimuove un giocatore da una sessione di gioco"""
     for session_id, session in game_sessions.items():
-        if session['players']['left'] == playerid:
-            session['players']['left'] = None
+        if session.players.left == playerid:
+            session.players.left = None
             current_app.logger.info(f'player "{playerid}" left session "{session_id}"')
             return (True, 'left')
         
-        if session['players']['right'] == playerid:
-            session['players']['right'] = None
+        if session.players.right == playerid:
+            session.players.right = None
             current_app.logger.info(f'player "{playerid}" left session "{session_id}"')
             return (True, 'right')
 

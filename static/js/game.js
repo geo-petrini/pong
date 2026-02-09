@@ -1,5 +1,39 @@
 let socket = io(`${window.location.hostname}:${window.location.port}`);
 
+(async () => {
+    // defaults
+    window.GAME_SETTINGS = {
+        paddleWidth: 10,
+        paddleHeight: 100,
+        paddleOffset: 50,
+        paddleVelocity: 300,
+        width: 800,
+        height: 600,
+        ballSize: 10,
+    };
+
+    try {
+        const res = await fetch('/config');
+        if (!res.ok) {
+            console.warn('Could not fetch /config, using defaults');
+            return;
+        }
+        const cfg = await res.json();    
+        // accept multiple possible property names and fall back to defaults
+        window.GAME_SETTINGS.paddleWidth = cfg.PADDLE_WIDHT ?? window.GAME_SETTINGS.paddleWidth;
+        window.GAME_SETTINGS.paddleHeight = cfg.PADDLE_HEIGHT ?? window.GAME_SETTINGS.paddleHeight;
+        window.GAME_SETTINGS.paddleOffset = cfg.PADDLE_OFFSET ?? window.GAME_SETTINGS.paddleOffset;
+        window.GAME_SETTINGS.paddleVelocity = cfg.PADDLE_VELOCITY ?? window.GAME_SETTINGS.paddleVelocity;
+        window.GAME_SETTINGS.width = cfg.GAME_WIDTH ?? window.GAME_SETTINGS.width;
+        window.GAME_SETTINGS.height = cfg.GAME_HEIGHT ?? window.GAME_SETTINGS.height;
+        window.GAME_SETTINGS.ballSize = cfg.BALL_SIZE ?? window.GAME_SETTINGS.ballSize;
+
+        console.log('GAME_SETTINGS loaded:', window.GAME_SETTINGS);
+    } catch (err) {
+        console.warn('Error loading /config, using defaults', err);
+    }
+})();
+
 class LobbyScene extends Phaser.Scene {
     // uses https://rexrainbow.github.io/phaser3-rex-notes/docs/site/
     COLOR_MAIN = 0x505050;
@@ -219,40 +253,26 @@ class GameScene extends Phaser.Scene {
         
         graphics.fillStyle(0xffffff, 1);
     
-        const paddleTexture = this.textures.createCanvas('paddle', 10, 100);
-        graphics.fillRect(0, 0, 10, 100);
-        graphics.generateTexture('paddle', 10, 100);
+        const paddleTexture = this.textures.createCanvas('paddle', window.GAME_SETTINGS.paddleWidth, window.GAME_SETTINGS.paddleHeight);
+        graphics.fillRect(0, 0, window.GAME_SETTINGS.paddleWidth, window.GAME_SETTINGS.paddleHeight);
+        graphics.generateTexture('paddle', window.GAME_SETTINGS.paddleWidth, window.GAME_SETTINGS.paddleHeight);
     
-        const ballTexture = this.textures.createCanvas('ball', 10, 10);
+        const ballTexture = this.textures.createCanvas('ball', window.GAME_SETTINGS.ballSize, window.GAME_SETTINGS.ballSize);
         graphics.clear();
         graphics.fillStyle(0xffffff, 1);
-        graphics.fillRect(0, 0, 10, 10);
-        graphics.generateTexture('ball', 10, 10);
+        graphics.fillRect(0, 0, window.GAME_SETTINGS.ballSize, window.GAME_SETTINGS.ballSize);
+        graphics.generateTexture('ball', window.GAME_SETTINGS.ballSize, window.GAME_SETTINGS.ballSize);
     }
     
     create() {
-        this.paddleLeft = this.physics.add.image(50, config.height / 2, 'paddle').setImmovable(true);
-        this.paddleRight = this.physics.add.image(config.width - 50, config.height / 2, 'paddle').setImmovable(true);
+        this.paddleLeft = this.physics.add.image(window.GAME_SETTINGS.paddleOffset, config.height / 2, 'paddle').setImmovable(true);
+        this.paddleRight = this.physics.add.image(config.width - window.GAME_SETTINGS.paddleOffset, config.height / 2, 'paddle').setImmovable(true);
         this.ball = this.physics.add.image(config.width / 2, config.height / 2, 'ball')
             .setCollideWorldBounds(true)
             .setBounce(1);
     
-        // Listen for ball collision with world bounds
-        // this.ball.body.onWorldBounds = true;
-        // this.physics.world.on('worldbounds', (body, up, down, left, right) => {
-        //     if (body.gameObject === this.ball) {
-        //         if (left || right) {
-        //             // Ball touched the left or right border
-        //             this.resetBall();
-        //         }
-        //     }
-        // });
-    
         this.paddleLeft.body.collideWorldBounds = true;
         this.paddleRight.body.collideWorldBounds = true;
-    
-        this.physics.add.collider(this.ball, this.paddleLeft);
-        this.physics.add.collider(this.ball, this.paddleRight);
     
         this.cursors = this.input.keyboard.createCursorKeys();
         this.keys = this.input.keyboard.addKeys('W,S');
@@ -261,15 +281,16 @@ class GameScene extends Phaser.Scene {
         this.sessionInfo = this.add.text(10, 30, '', { fontSize: '16px', fill: '#fff' });        
            
         socket.on('connect', () => {
-            console.log(`✅ Connesso al server Pong con socket ID: ${socket.id}`);
+            console.log(`Connesso al server Pong con socket ID: ${socket.id}`);
         });
        
         socket.on('gameState', (response) => {
             if (response.to !== this.sessionId) return;
+            // console.debug(`response: ${response}`)
             this.gameState = response.state;
             this.updateGameObjects();
             this.updatePaddleInfo();
-            console.debug('🎮 Stato di gioco ricevuto dal server', state);
+            console.debug('Stato di gioco ricevuto dal server', state);
         });
     }
     
@@ -279,14 +300,14 @@ class GameScene extends Phaser.Scene {
     
         // Controllo del paddle sinistro (W e S)
         if (this.paddleSide === 'left') {
-            if (this.keys.W.isDown) paddleVelocity = -300;
-            else if (this.keys.S.isDown) paddleVelocity = 300;
+            if (this.keys.W.isDown) paddleVelocity = -window.GAME_SETTINGS.paddleVelocity;
+            else if (this.keys.S.isDown) paddleVelocity = window.GAME_SETTINGS.paddleVelocity;
         }
     
         // Controllo del paddle destro (Freccia Su e Giù)
         if (this.paddleSide === 'right') {
-            if (this.cursors.up.isDown) paddleVelocity = -300;
-            else if (this.cursors.down.isDown) paddleVelocity = 300;
+            if (this.cursors.up.isDown) paddleVelocity = -window.GAME_SETTINGS.paddleVelocity;
+            else if (this.cursors.down.isDown) paddleVelocity = window.GAME_SETTINGS.paddleVelocity;
         }
     
         // Movimento del paddle locale
@@ -337,11 +358,6 @@ class GameScene extends Phaser.Scene {
         this.sessionInfo.setText(`Sessione: ${this.sessionId} | Giocatore: ${socket.id}`);
     }
 
-    // // Reset the ball to the center
-    // resetBall() {
-    //     this.ball.setPosition(config.width / 2, config.height / 2);
-    //     this.ball.setVelocity(200, 200); // Reset velocity
-    // }    
 }
 
 const config = {
@@ -350,8 +366,8 @@ const config = {
     pixelArt: true,
     roundPixels: true,
     parent: 'phaser-content',
-    width: 800,
-    height: 600,
+    width: window.GAME_SETTINGS.width,
+    height: window.GAME_SETTINGS.height,
     physics: {
         default: 'arcade',
         arcade: {
@@ -363,5 +379,6 @@ const config = {
         GameScene,
     ]
 };
+
 
 const game = new Phaser.Game(config); // eslint-disable-line no-unused-vars

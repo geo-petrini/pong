@@ -6,3 +6,4 @@ _ref
 _res
 .git
 *.log
+.gitignore

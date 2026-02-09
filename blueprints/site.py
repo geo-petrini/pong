@@ -33,6 +33,21 @@ def delete_sessions():
 @app.route('/lobby', methods=['GET'])
 def lobby():
     """Restituisce tutte le sessioni di gioco disponibili"""
-    sessions = get_available_sessions()
+    sessions = su.get_available_sessions()
     return jsonify(sessions)
+
+@app.route('/config')
+def get_config():
+    config = {
+        'GAME_WIDTH':current_app.config['GAME_WIDTH'],
+        'GAME_HEIGHT':current_app.config['GAME_HEIGHT'],
+        'PADDLE_WIDHT':current_app.config['PADDLE_WIDHT'],       
+        'PADDLE_HEIGHT':current_app.config['PADDLE_HEIGHT'],    
+        'PADDLE_OFFSET':current_app.config['PADDLE_OFFSET'],    
+        'PADDLE_VELOCITY':current_app.config['PADDLE_VELOCITY'],    
+        'BALL_SIZE':current_app.config['BALL_SIZE'],
+        'BALL_VELOCITY':current_app.config['BALL_VELOCITY']
+    }
+    return jsonify(config)
+
 

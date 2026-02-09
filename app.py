@@ -15,6 +15,14 @@ def create_app(debug=False):
     app = Flask(__name__)
     app.debug = debug
     app.config['SECRET_KEY'] = 'secret!'
+    app.config['GAME_WIDTH'] = 800
+    app.config['GAME_HEIGHT'] = 600
+    app.config['PADDLE_WIDHT'] = 10
+    app.config['PADDLE_HEIGHT'] = 100
+    app.config['PADDLE_OFFSET'] = 50    #paddle distance from left/right borders
+    app.config['PADDLE_VELOCITY'] = 400
+    app.config['BALL_SIZE'] = 10
+    app.config['BALL_VELOCITY'] = 200
     CORS(app, resources={r"/*": {"origins": "*"}})
 
     from blueprints.site import app as site_app
