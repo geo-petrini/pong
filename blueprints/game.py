@@ -73,7 +73,7 @@ def handle_update_paddle(data):
     if su.session_exists(session_id):
         su.update_paddle(session_id, paddle, paddle_y)
         # current_app.logger.debug(f'emitting state:{su.get_game_state(session_id).to_json()}')
-        socketio.emit('gameState', {'state':su.get_game_state(session_id).to_json(), 'to':session_id})
+        socketio.emit('gameState', {'state':su.get_game_state(session_id), 'to':session_id})
     else:
         emit('error', {'message': 'Sessione non trovata'})
 

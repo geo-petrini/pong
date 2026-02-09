@@ -290,7 +290,7 @@ class GameScene extends Phaser.Scene {
             this.gameState = response.state;
             this.updateGameObjects();
             this.updatePaddleInfo();
-            console.debug('Stato di gioco ricevuto dal server', state);
+            // console.debug('Stato di gioco ricevuto dal server', this.gameState);
         });
     }
     
