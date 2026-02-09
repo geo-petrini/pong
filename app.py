@@ -5,7 +5,7 @@ from logging import Formatter
 from dotenv import load_dotenv
 from flask import Flask, request, current_app, jsonify, redirect, url_for, render_template
 from flask_cors import CORS
-from blueprints.game import socketio, start_ball_update
+from blueprints.game import socketio, start_loop
 
 
 load_dotenv()
@@ -28,12 +28,12 @@ def create_app(debug=False):
     from blueprints.site import app as site_app
 
     app.register_blueprint(site_app)
+    socketio.init_app(app, cors_allowed_origins="*")
     
     with app.app_context():
         change_logger() # change the default logger
-        start_ball_update()
+        start_loop()
 
-    socketio.init_app(app, cors_allowed_origins="*")
     return app
 
 def change_logger():

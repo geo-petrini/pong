@@ -9,30 +9,6 @@ def generate_session_id():
     return str(uuid.uuid4())
 
 def init_session_data():
-    '''
-    generate a session data structure like this
-    {
-        'players': {'left': None, 'right': None},
-        'game_state': {
-            'paddle':{
-                'left':{
-                    'x':0+current_app.config['PADDLE_OFFSET'],
-                    'y':current_app.config['GAME_HEIGHT']/2
-                },
-                'right':{
-                    'x':0+current_app.config['PADDLE_OFFSET'],
-                    'y':current_app.config['GAME_HEIGHT']/2
-                }
-            },
-            'ball':{
-                'x':current_app.config['GAME_WIDTH']/2,
-                'y':current_app.config['GAME_HEIGHT']/2,
-                'velocityX': current_app.config['BALL_VELOCITY'],
-                'velocityY': current_app.config['BALL_VELOCITY']
-            }
-        }
-    }
-    '''  
     session_data = benedict(keyattr_dynamic=True)
     session_data.players.left = None
     session_data.players.right = None
@@ -46,6 +22,10 @@ def init_session_data():
     session_data.game_state.ball.y = current_app.config['GAME_HEIGHT']/2
     session_data.game_state.ball.velocity.x = current_app.config['BALL_VELOCITY']
     session_data.game_state.ball.velocity.y = current_app.config['BALL_VELOCITY']
+
+    session_data.last_update_time = 0
+    session_data.current_round = None
+    session_data.rounds = []
 
     return session_data  
 
@@ -65,19 +45,22 @@ def join_session(session_id, playerid):
         current_app.logger.error(f'session "{session_id}" not found')
         return (False, 'Session not found')
 
-    if is_session_full(session_id):
+    elif is_session_full(session_id):
         current_app.logger.error(f'session "{session_id}" is full')
         return (False, 'Session is full')
     
-    if game_sessions[session_id].players.left == None:
+    elif game_sessions[session_id].players.left == None:
         game_sessions[session_id].players.left = playerid
         current_app.logger.info(f'player "{playerid}" joined session "{session_id}" as left')
         return (True, 'left')
     
-    if game_sessions[session_id].players.right == None:
+    elif game_sessions[session_id].players.right == None:
         game_sessions[session_id].players.right = playerid
         current_app.logger.info(f'player "{playerid}" joined session "{session_id}" as right')
         return (True, 'right')
+    
+    else:
+        return (False, 'Unknown error')
 
 def get_player_paddle(session_id, playerid):
     """Restituisce il paddle assegnato a un giocatore in una sessione di gioco"""

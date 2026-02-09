@@ -125,7 +125,7 @@ class LobbyScene extends Phaser.Scene {
         })
             .layout()
             .on('textchange', function (text) {
-                console.log(`Content: '${text}'`)
+                // console.log(`Content: '${text}'`)
                 this.scene.session_id = text
             })
 
@@ -279,6 +279,7 @@ class GameScene extends Phaser.Scene {
 
         this.paddleInfo = this.add.text(10, 10, '', { fontSize: '16px', fill: '#fff' });
         this.sessionInfo = this.add.text(10, 30, '', { fontSize: '16px', fill: '#fff' });        
+        this.roundInfo = this.add.text(10, 50, '', { fontSize: '16px', fill: '#fff' });
            
         socket.on('connect', () => {
             console.log(`Connesso al server Pong con socket ID: ${socket.id}`);
@@ -286,10 +287,10 @@ class GameScene extends Phaser.Scene {
        
         socket.on('gameState', (response) => {
             if (response.to !== this.sessionId) return;
-            // console.debug(`response: ${response}`)
             this.gameState = response.state;
             this.updateGameObjects();
             this.updatePaddleInfo();
+            this.updateRoundInfo();
             // console.debug('Stato di gioco ricevuto dal server', this.gameState);
         });
     }
@@ -298,17 +299,17 @@ class GameScene extends Phaser.Scene {
         if (this.paddleSide === 'spectator') return; // Spettatori non controllano i paddle
         let paddleVelocity = 0;
     
-        // Controllo del paddle sinistro (W e S)
-        if (this.paddleSide === 'left') {
+        // Controllo del paddle (W e S)
+        // if (this.paddleSide === 'left') {
             if (this.keys.W.isDown) paddleVelocity = -window.GAME_SETTINGS.paddleVelocity;
             else if (this.keys.S.isDown) paddleVelocity = window.GAME_SETTINGS.paddleVelocity;
-        }
+        // }
     
-        // Controllo del paddle destro (Freccia Su e Giù)
-        if (this.paddleSide === 'right') {
+        // Controllo del paddle (Freccia Su e Giù)
+        // if (this.paddleSide === 'right') {
             if (this.cursors.up.isDown) paddleVelocity = -window.GAME_SETTINGS.paddleVelocity;
             else if (this.cursors.down.isDown) paddleVelocity = window.GAME_SETTINGS.paddleVelocity;
-        }
+        // }
     
         // Movimento del paddle locale
         let currentPaddle = this.paddleSide === 'left' ? this.paddleLeft : this.paddleRight;
@@ -325,6 +326,7 @@ class GameScene extends Phaser.Scene {
         this.updateGameObjects();
         this.updatePaddleInfo();
         this.updateSessionInfo();
+        
     }
     
     updateGameObjects() {
@@ -356,6 +358,15 @@ class GameScene extends Phaser.Scene {
     updateSessionInfo() {
         // this.sessionInfo.setText(`Sessione: ${this.sessionId}`);
         this.sessionInfo.setText(`Sessione: ${this.sessionId} | Giocatore: ${socket.id}`);
+    }
+
+    updateRoundInfo() {
+        if (!this.gameState.rounds) this.roundInfo.setText('');
+        const currentRound = this.gameState.current_round;
+        const rounds = this.gameState.rounds;
+        let roundText = `Round: ${JSON.stringify(currentRound)  ?? 'N/A'}`;
+        // let roundCountdown = `Start in: ${currentRound.start_countdown ?? 'N/A'}s\n`;
+        this.roundInfo.setText(roundText);
     }
 
 }

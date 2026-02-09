@@ -1,5 +1,5 @@
 import time
-from threading import Thread
+from threading import Thread, Event
 import random
 
 from flask import request
@@ -12,7 +12,7 @@ from flask_socketio import emit, join_room, leave_room
 import modules.session_utils as su
 
 socketio = SocketIO()
-
+stop_event = Event()
 
 # TODO check if it could be better using rooms
 # TODO use global variables to store the game size and other default values (like paddles x position)
@@ -72,16 +72,15 @@ def handle_update_paddle(data):
     
     if su.session_exists(session_id):
         su.update_paddle(session_id, paddle, paddle_y)
-        # current_app.logger.debug(f'emitting state:{su.get_game_state(session_id).to_json()}')
         socketio.emit('gameState', {'state':su.get_game_state(session_id), 'to':session_id})
     else:
         emit('error', {'message': 'Sessione non trovata'})
 
-def update_ball(session_id):
+def update_ball(game_state):
     # Movimento della palla (aggiornamento lato server)
-    game_state = su.get_game_state(session_id)
-    game_state.ball.x += game_state['ballVelocityX'] / 60
-    game_state.ball.y += game_state['ballVelocityY'] / 60
+    # game_state = su.get_game_state(session_id)
+    game_state.ball.x += game_state.ball.x / 60
+    game_state.ball.y += game_state.ball.y / 60
 
     # Collisione con bordi
     _check_collision_ball_top(game_state)
@@ -89,11 +88,22 @@ def update_ball(session_id):
     _check_collision_ball_left(game_state)
     _check_collision_ball_right(game_state)
 
-    # Invia lo stato aggiornato a tutti i client della sessione
-    try:
-        socketio.emit('gameState', {'state':game_state.to_json(), 'to':session_id})
-    except Exception as e:
-        current_app.logger.exception(f"Errore durante l'emissione dello stato del gioco per la sessione {session_id}: {e}")
+def start_round(game_state):
+    # TODO gestire i round (punteggio, reset palla, ecc.)
+    if game_state.rounds == None:
+        game_state.rounds = []
+
+    round = {
+        'winner': None,
+        'start_countdown': 3, # countdown in secondi prima dell'inizio del round
+    }
+    game_state.rounds.append(round)
+    game_state.current_round = game_state.rounds[-1]
+    pass
+
+def end_round(game_state, winner):
+    game_state.current_round['winner'] = winner
+    pass
 
 def _reset_ball(game_state):
     game_state.ball.x = current_app.config['GAME_WIDTH']/2  # Reset to center (half of the width)
@@ -114,28 +124,54 @@ def _check_collision_ball_bottom(game_state):
 def _check_collision_ball_left(game_state):
     # Collisione con bordo sinistro
      if game_state.ball.x >= 0:
+        end_round(game_state, 'right')  # Il giocatore destro vince il round
         _reset_ball(game_state)  
         
 def _check_collision_ball_right(game_state):
     # Collisione con bordo destro
      if game_state.ball.x >= current_app.config['GAME_WIDTH']:
+        end_round(game_state, 'left')  # Il giocatore sinistro vince il round
         _reset_ball(game_state)  
 
 def _check_collision_paddle_left(game_state):
     # if game_state['ballX'] = game_state["pa"]
     pass
 
-def ball_update_loop():
-    while True:
-        for session_id in su.game_sessions.keys():
-            try:
-                update_ball(session_id)
-            except Exception as e:
-                current_app.logger.exception(f"Errore durante l'aggiornamento della palla per la sessione {session_id}: {e}")
-        time.sleep(1 / 60)  # Sincronizzazione a ~60 FPS
+def update_loop(app):
+    dt = 1/60.0  # 60 FPS
+    with app.app_context():
+        while not stop_event.is_set():
+            for session_id in su.game_sessions.keys():
+                try:
+                    game_state = su.get_game_state(session_id)
+                    if not game_state:
+                        continue
 
-def start_ball_update():
+                    if game_state.rounds == None:
+                        current_app.logger.warning(f'Session {session_id} has no rounds initialized, starting round')
+                        start_round(game_state)
+
+                    if game_state.current_round and game_state.current_round.start_countdown > 0:
+                        # Countdown prima dell'inizio del round
+                        game_state.current_round.start_countdown -= dt  # Decrementa il countdown
+                    else:    
+                        update_ball(game_state)
+                    # Invia lo stato aggiornato a tutti i client della sessione
+                    try:
+                        socketio.emit('gameState', {'state':game_state.to_json(), 'to':session_id})
+                    except Exception as e:
+                        current_app.logger.exception(f"Errore durante l'emissione dello stato del gioco per la sessione {session_id}: {e}")                
+                except Exception as e:
+                    current_app.logger.exception(f"Errore nel loop: sessione {session_id}: {e}")
+            time.sleep(dt)  # Sincronizzazione a ~60 FPS
+
+def start_loop():
     current_app.logger.info('Creating background update loop')
-    thread = Thread(target=ball_update_loop)
-    thread.daemon = True
-    thread.start()
+
+    socketio.start_background_task(update_loop, current_app._get_current_object())
+    # thread = Thread(target=update_loop)
+    # thread.daemon = True
+    # thread.start()
+
+def stop_loop():
+    stop_event.set()
