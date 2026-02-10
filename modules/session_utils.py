@@ -1,6 +1,7 @@
 import uuid
 from benedict import benedict
 from flask import current_app
+from modules.session import SessionData, Players, GameState, Paddles, Paddle, Ball, Velocity, Round
 # Stato del gioco e sessioni attive
 game_sessions = {}
 
@@ -8,26 +9,58 @@ def generate_session_id():
     """Genera un ID di sessione unico"""
     return str(uuid.uuid4())
 
+
 def init_session_data():
-    session_data = benedict(keyattr_dynamic=True)
-    session_data.players.left = None
-    session_data.players.right = None
-    session_data.game_state.paddle.left.x = 0+current_app.config['PADDLE_OFFSET']
-    session_data.game_state.paddle.left.y = current_app.config['GAME_HEIGHT']/2
+    width = current_app.config['GAME_WIDTH']
+    height = current_app.config['GAME_HEIGHT']
+    paddle_offset = current_app.config['PADDLE_OFFSET']
+    ball_velocity = current_app.config['BALL_VELOCITY']
 
-    session_data.game_state.paddle.right.x =0+current_app.config['PADDLE_OFFSET']
-    session_data.game_state.paddle.right.y = current_app.config['GAME_HEIGHT']/2
+    session_data = SessionData(
+        players=Players(),
+        game_state=GameState(
+            paddle=Paddles(
+                left=Paddle(
+                    x=paddle_offset,
+                    y=height/2
+                ),
+                right=Paddle(
+                    x=width - paddle_offset,
+                    y=height/2
+                )
+            ),
+            ball=Ball(
+                x=width/2,
+                y=height/2,
+                velocity=Velocity(
+                    x=ball_velocity,
+                    y=ball_velocity
+                )
+            ),
+            rounds=[],
+            current_round=None
+        )
+    )
 
-    session_data.game_state.ball.x = current_app.config['GAME_WIDTH']/2
-    session_data.game_state.ball.y = current_app.config['GAME_HEIGHT']/2
-    session_data.game_state.ball.velocity.x = current_app.config['BALL_VELOCITY']
-    session_data.game_state.ball.velocity.y = current_app.config['BALL_VELOCITY']
+    return session_data    
 
-    session_data.last_update_time = 0
-    session_data.current_round = None
-    session_data.rounds = []
+def start_round(game_state):
+    # TODO gestire i round (punteggio, reset palla, ecc.)
+    if game_state.rounds == None:
+        game_state.rounds = []
 
-    return session_data  
+    round = Round(
+        winner=None,
+        start_countdown=3.0
+    )
+    
+    game_state.rounds.append(round)
+    game_state.current_round = game_state.rounds[-1]
+    
+
+def end_round(game_state, winner):
+    game_state.current_round.winner = winner
+    
 
 def create_game_session(session_id):
     """Crea una nuova sessione di gioco"""
@@ -76,7 +109,7 @@ def get_players_count(session_id):
 
 def get_game_state(session_id):
     """Restituisce lo stato di una sessione di gioco"""
-    return game_sessions[session_id]['game_state']
+    return game_sessions[session_id].game_state
 
 def is_session_full(session_id):
     """Restituisce True se la sessione è piena, False altrimenti"""

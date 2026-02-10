@@ -49,7 +49,7 @@ def socket_join_session(data):
     # TODO use the to argument somehow
     socketio.emit('sessionJoined', {'session_id': session_id, 'paddle': paddle, 'to':request.sid})
     # Notifica tutti i client connessi a quella sessione
-    socketio.emit('gameState', {'state':su.get_game_state(session_id), 'to':session_id})
+    socketio.emit('gameState', {'state':su.get_game_state(session_id).to_dict(), 'to':session_id})
     
 @socketio.on('connect')
 def handle_connect():
@@ -72,7 +72,7 @@ def handle_update_paddle(data):
     
     if su.session_exists(session_id):
         su.update_paddle(session_id, paddle, paddle_y)
-        socketio.emit('gameState', {'state':su.get_game_state(session_id), 'to':session_id})
+        socketio.emit('gameState', {'state':su.get_game_state(session_id).to_dict(), 'to':session_id})
     else:
         emit('error', {'message': 'Sessione non trovata'})
 
@@ -88,33 +88,10 @@ def update_ball(game_state):
     _check_collision_ball_left(game_state)
     _check_collision_ball_right(game_state)
 
-def start_round(game_state):
-    # TODO gestire i round (punteggio, reset palla, ecc.)
-    if game_state.rounds == None:
-        game_state.rounds = []
-
-    # round = benedict({
-    #     'winner': None,
-    #     'start_countdown': 3, # countdown in secondi prima dell'inizio del round
-    # })
-    round = benedict(keyattr_dynamic=True)
-    round.winner = None
-    round.start_countdown = 3
-    round.keyattr_enabled = False
-    
-    game_state.rounds.append(round)
-    #game_state.current_round = game_state.rounds[-1]
-    game_state.current_round = round
-    pass
-
-def end_round(game_state, winner):
-    game_state.current_round['winner'] = winner
-    pass
-
 def _reset_ball(game_state):
     game_state.ball.x = current_app.config['GAME_WIDTH']/2  # Reset to center (half of the width)
     game_state.ball.y = current_app.config['GAME_HEIGHT']/2  # Reset to center (half of the height)
-    game_state.ball.velocity.x = -game_state['ballVelocityX']  # Reverse direction
+    game_state.ball.velocity.x = -game_state.ball.velocity.x  # Reverse direction
     game_state.ball.velocity.y = random.choice([-200, 200])  # Reset vertical velocity to a random direction    
 
 def _check_collision_ball_top(game_state):
@@ -129,14 +106,14 @@ def _check_collision_ball_bottom(game_state):
 
 def _check_collision_ball_left(game_state):
     # Collisione con bordo sinistro
-     if game_state.ball.x >= 0:
-        end_round(game_state, 'right')  # Il giocatore destro vince il round
+     if game_state.ball.x <= 0:
+        su.end_round(game_state, 'right')  # Il giocatore destro vince il round
         _reset_ball(game_state)  
         
 def _check_collision_ball_right(game_state):
     # Collisione con bordo destro
      if game_state.ball.x >= current_app.config['GAME_WIDTH']:
-        end_round(game_state, 'left')  # Il giocatore sinistro vince il round
+        su.end_round(game_state, 'left')  # Il giocatore sinistro vince il round
         _reset_ball(game_state)  
 
 def _check_collision_paddle_left(game_state):
@@ -152,19 +129,22 @@ def update_loop(app):
                     game_state = su.get_game_state(session_id)
                     if not game_state:
                         continue
+                    
+                    if not su.is_session_full(session_id):
+                        continue
 
-                    if game_state.rounds == None:
+                    if game_state.current_round == None:
                         current_app.logger.warning(f'Session {session_id} has no rounds initialized, starting round')
-                        start_round(game_state)
+                        su.start_round(game_state)
 
-                    if game_state.current_round and game_state.current_round.start_countdown > 0:
+                    if game_state.current_round and game_state.current_round.countdown > 0:
                         # Countdown prima dell'inizio del round
-                        game_state.current_round.start_countdown -= dt  # Decrementa il countdown
+                        game_state.current_round.countdown -= dt  # Decrementa il countdown
                     else:    
                         update_ball(game_state)
                     # Invia lo stato aggiornato a tutti i client della sessione
                     try:
-                        socketio.emit('gameState', {'state':game_state.to_json(), 'to':session_id})
+                        socketio.emit('gameState', {'state':game_state.to_dict(), 'to':session_id})
                     except Exception as e:
                         current_app.logger.exception(f"Errore durante l'emissione dello stato del gioco per la sessione {session_id}: {e}")                
                 except Exception as e:

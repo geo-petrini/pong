@@ -288,6 +288,7 @@ class GameScene extends Phaser.Scene {
         socket.on('gameState', (response) => {
             if (response.to !== this.sessionId) return;
             this.gameState = response.state;
+            if (!this.gameState) return;
             this.updateGameObjects();
             this.updatePaddleInfo();
             this.updateRoundInfo();
@@ -330,19 +331,19 @@ class GameScene extends Phaser.Scene {
     }
     
     updateGameObjects() {
-        if (!this.gameState) return;
+        if (!this.gameState || !this.gameState.paddle || !this.gameState.ball) return;
     
         // muovi il paddle dell'avversario secondo quanto ricevuto dal server
         if (this.paddleSide === 'left') {
-            this.paddleRight.y = this.gameState.paddleRightY;
+            this.paddleRight.y = this.gameState.paddle.right.y;
         }
         if (this.paddleSide === 'right') {
-            this.paddleLeft.y = this.gameState.paddleLeftY;
+            this.paddleLeft.y = this.gameState.paddle.left.y;
         }
     
         // muove la palla secondo quanto ricevuto dal server
-        this.ball.x = this.gameState.ballX;
-        this.ball.y = this.gameState.ballY;
+        this.ball.x = this.gameState.ball.x;
+        this.ball.y = this.gameState.ball.y;
     }
     
     updatePaddleInfo() {
