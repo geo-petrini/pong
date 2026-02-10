@@ -8,7 +8,7 @@ from flask import jsonify
 
 from flask_socketio import SocketIO
 from flask_socketio import emit, join_room, leave_room
-
+from benedict import benedict
 import modules.session_utils as su
 
 socketio = SocketIO()
@@ -93,12 +93,18 @@ def start_round(game_state):
     if game_state.rounds == None:
         game_state.rounds = []
 
-    round = {
-        'winner': None,
-        'start_countdown': 3, # countdown in secondi prima dell'inizio del round
-    }
+    # round = benedict({
+    #     'winner': None,
+    #     'start_countdown': 3, # countdown in secondi prima dell'inizio del round
+    # })
+    round = benedict(keyattr_dynamic=True)
+    round.winner = None
+    round.start_countdown = 3
+    round.keyattr_enabled = False
+    
     game_state.rounds.append(round)
-    game_state.current_round = game_state.rounds[-1]
+    #game_state.current_round = game_state.rounds[-1]
+    game_state.current_round = round
     pass
 
 def end_round(game_state, winner):
