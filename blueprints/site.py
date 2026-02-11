@@ -51,3 +51,11 @@ def get_config():
     return jsonify(config)
 
 
+@app.route("/config", methods=['POST'])
+def set_config():
+    data = request.json
+    if data:
+        for key, value in data.items():
+            if key in current_app.config:
+                current_app.config[key] = value
+    return jsonify({"ok": True})
