@@ -15,7 +15,6 @@ socketio = SocketIO()
 stop_event = Event()
 
 # TODO check if it could be better using rooms
-# TODO use global variables to store the game size and other default values (like paddles x position)
 
 @socketio.on('createSession')
 def socket_create_session(data):
@@ -46,7 +45,6 @@ def socket_join_session(data):
 
     paddle = su.get_player_paddle(session_id, request.sid)
 
-    # TODO use the to argument somehow
     socketio.emit('sessionJoined', {'session_id': session_id, 'paddle': paddle, 'to':request.sid})
     # Notifica tutti i client connessi a quella sessione
     socketio.emit('gameState', {'state':su.get_game_state(session_id).to_dict(), 'to':session_id})
@@ -117,7 +115,6 @@ def _check_collision_ball_right(game_state):
         _reset_ball(game_state)  
 
 def _check_collision_paddle_left(game_state):
-    # if game_state['ballX'] = game_state["pa"]
     pass
 
 def update_loop(app):
