@@ -1,7 +1,7 @@
 import uuid
 from benedict import benedict
 from flask import current_app
-from modules.session import SessionData, Players, GameState, Paddles, Paddle, Ball, Velocity, Round
+from modules.session_objects import SessionData, Players, GameState, Paddles, Paddle, Ball, Velocity, Round
 # Stato del gioco e sessioni attive
 game_sessions = {}
 

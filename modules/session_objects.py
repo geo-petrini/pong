@@ -73,6 +73,8 @@ class Paddle(Base):
     x: float
     y: float
 
+    
+
 @dataclass
 class Paddles(Base):
     left: Paddle
